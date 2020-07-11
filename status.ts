@@ -30,4 +30,9 @@ export default {
     ...failFlag,
     msg: '用户名或密码错误'
   },
+  '登陆已过期': {
+    status: 703,
+    ...failFlag,
+    msg: '登陆已过期'
+  }
 }

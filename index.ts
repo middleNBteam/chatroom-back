@@ -9,6 +9,8 @@ const router = new Router();
 import {searchSql} from './searchSql'
 import { v4 as uuidv4 } from 'uuid';
 import status from './status'
+import * as redis from './reidsFunction'
+import { Certificate } from 'crypto';
 app.use(bodyparser({multipart:true}))
 
 // logger
@@ -61,14 +63,23 @@ router.post('/addusers', async (ctx, next) => {
 });
 router.post('/loginusers', async (ctx, next) => {
   const requestData = ctx.request.body;
-  const checkUserIsExitSql = `SELECT username FROM usinguser WHERE username = "${requestData.username}" AND passwords = "${requestData.passwords}";`
+  const checkUserIsExitSql = `SELECT userid, username FROM usinguser WHERE username = "${requestData.username}" AND passwords = "${requestData.passwords}";`
   
   try {
     const checkResult = await searchSql(checkUserIsExitSql);
     if((checkResult as Array<any>).length > 0 ) {
+      const existToken = await redis.get(`user:${checkResult[0].userid}`)
+      let token = existToken
+      if(!existToken) {
+        token = createToken()
+        const r1 = await redis.set(`user:${checkResult[0].userid}`, token)
+        const r2 = await redis.expire(`user:${checkResult[0].userid}`, 60)
+        const r3 = await redis.set(`token:${token}`, checkResult[0].userid)
+        const r4 = await redis.expire(`token:${token}`, 60)
+      }
       ctx.body = {
         ...status['登陆成功'],
-        token: createToken()
+        token: token
       }
     } else {
       ctx.body = status['用户名或密码错误']
@@ -98,7 +109,31 @@ router.post('/deleteuser', async (ctx, next) => {
   }
   // ctx.router available
 });
-
+router.post('/getData/all', async (ctx, next) => {
+  const result = await next()
+  if(!result) {
+    return
+  }
+  ctx.body = {
+    a: 111,
+    b: 222
+  };
+  // ctx.router available
+});
+router.post('/getData/:thing', async (ctx, next) => {
+  const requestData = ctx.request.header;
+  const userId = await redis.get(`token:${requestData.token}`)
+  if(!userId) {
+    ctx.body = status['登陆已过期']
+    return false
+  }
+  const uesrToken = await redis.get(`user:${userId}`)
+  if(uesrToken !== requestData.token) {
+    ctx.body = status['登陆已过期']
+    return false
+  }
+  return true
+});
 app
   .use(router.routes())
   .use(router.allowedMethods());

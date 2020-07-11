@@ -4,9 +4,9 @@ async function searchSql(query:String) {
   return await new Promise((resolve, reject)=> {
     var connection = mysql.createConnection({
       host: 'localhost',
-      user: 'root',
+      user: 'darren',
       password : 'root',
-      database : 'chatroom'
+      database : 'CHATROOM'
     });
     connection.connect();
     connection.query(query, function (error, results, fields) {

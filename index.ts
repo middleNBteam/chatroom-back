@@ -8,6 +8,7 @@ const app = new Koa();
 const router = new Router();
 import {searchSql} from './searchSql'
 import { v4 as uuidv4 } from 'uuid';
+import status from './status'
 app.use(bodyparser({multipart:true}))
 
 // logger
@@ -41,20 +42,18 @@ router.post('/users', async (ctx, next) => {
 });
 router.post('/addusers', async (ctx, next) => {
   const requestData = ctx.request.body;
-  const checkUserIsExitSql = `SELECT username FROM users WHERE username = "${requestData.username}";`
+  const checkUserIsExitSql = `SELECT username FROM usinguser WHERE username = "${requestData.username}";`
   const checkResult = await searchSql(checkUserIsExitSql);
   if((checkResult as Array<any>).length > 0 ) {
-    ctx.body = {
-      status: 701,
-      msg: '用户已存在'
-    }
+    ctx.body = status['用户名已存在']
     return
   }
-  const addUserSql = `INSERT INTO users (username, passwords) VALUES ("${requestData.username}", "${requestData.passwords}");`
+  const userId = createToken()
+  const addUserSql = `INSERT INTO users (userid, username, passwords) VALUES ("${userId}", "${requestData.username}", "${requestData.passwords}");`
   try {
     const result = await searchSql(addUserSql)
     console.log('result', result)
-    ctx.body = result
+    ctx.body = status['成功注册']
   } catch(err) {
     ctx.body = err
   }
@@ -62,27 +61,44 @@ router.post('/addusers', async (ctx, next) => {
 });
 router.post('/loginusers', async (ctx, next) => {
   const requestData = ctx.request.body;
-  const checkUserIsExitSql = `SELECT username FROM users WHERE username = "${requestData.username}" AND passwords = "${requestData.passwords}";`
+  const checkUserIsExitSql = `SELECT username FROM usinguser WHERE username = "${requestData.username}" AND passwords = "${requestData.passwords}";`
   
   try {
     const checkResult = await searchSql(checkUserIsExitSql);
     if((checkResult as Array<any>).length > 0 ) {
       ctx.body = {
-        status: 200,
-        msg: '登陆成功',
-        token: uuidv4()
+        ...status['登陆成功'],
+        token: createToken()
       }
     } else {
-      ctx.body = {
-        status: 702,
-        msg: '用户名或密码错误'
-      }
+      ctx.body = status['用户名或密码错误']
     }
   } catch(err) {
     ctx.body = err
   }
   // ctx.router available
 });
+
+router.post('/deleteuser', async (ctx, next) => {
+  const requestData = ctx.request.body;
+  const checkUserIsExitSql = `SELECT userid FROM usinguser WHERE username = "${requestData.username}" AND passwords = "${requestData.passwords}";`
+
+  try {
+    const checkResult = await searchSql(checkUserIsExitSql);
+    if((checkResult as Array<any>).length > 0 ) {
+      const deleteUserSql = `UPDATE users SET isdelete = 1 WHERE userid = "${checkResult[0].userid}" AND isdelete = 0;`
+      const deleteResult = await searchSql(deleteUserSql);
+      ctx.body = status['删除成功']
+    } else {
+      ctx.body = status['用户名或密码错误']
+
+    }
+  } catch(err) {
+    ctx.body = err
+  }
+  // ctx.router available
+});
+
 app
   .use(router.routes())
   .use(router.allowedMethods());
@@ -95,3 +111,6 @@ console.log('start')
 http.createServer(app.callback()).listen(3000);
 // https.createServer(app.callback()).listen(3001);
 
+function createToken(): string {
+  return (uuidv4() as string).replace(/-/g, '')
+}

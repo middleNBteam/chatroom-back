@@ -11,6 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
 import status from './status'
 import * as redis from './reidsFunction'
 import { Certificate } from 'crypto';
+const USER_LOGIN_TOKEN_LIMIT_TIME = 300
 app.use(bodyparser({multipart:true}))
 
 // logger
@@ -73,9 +74,9 @@ router.post('/loginusers', async (ctx, next) => {
       if(!existToken) {
         token = createToken()
         const r1 = await redis.set(`user:${checkResult[0].userid}`, token)
-        const r2 = await redis.expire(`user:${checkResult[0].userid}`, 60)
+        const r2 = await redis.expire(`user:${checkResult[0].userid}`, USER_LOGIN_TOKEN_LIMIT_TIME)
         const r3 = await redis.set(`token:${token}`, checkResult[0].userid)
-        const r4 = await redis.expire(`token:${token}`, 60)
+        const r4 = await redis.expire(`token:${token}`, USER_LOGIN_TOKEN_LIMIT_TIME)
       }
       ctx.body = {
         ...status['登陆成功'],
@@ -109,6 +110,7 @@ router.post('/deleteuser', async (ctx, next) => {
   }
   // ctx.router available
 });
+
 router.post('/getData/all', async (ctx, next) => {
   const result = await next()
   if(!result) {
@@ -120,6 +122,8 @@ router.post('/getData/all', async (ctx, next) => {
   };
   // ctx.router available
 });
+
+// 验证token有效期中间件
 router.post('/getData/:thing', async (ctx, next) => {
   const requestData = ctx.request.header;
   const userId = await redis.get(`token:${requestData.token}`)

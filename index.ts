@@ -18,8 +18,26 @@ app.use(bodyparser({multipart:true}))
 app.use(async (ctx, next) => {
   await next();
   const rt = ctx.response.get('X-Response-Time');
+  // if(ctx.method === 'OPTIONS') {
+  //   let allow = ctx.get('Allow');
+  //   ctx.set('Allow', `${allow}, OPTIONS`);
+  // }
   console.log(`${ctx.method} ${ctx.url} - ${rt}`);
 });
+
+// options请求处理
+app.use(async (ctx, next) =>{
+  if(ctx.method === 'OPTIONS') {
+    ctx.status = 204
+    ctx.set('Access-Control-Allow-Origin', `*`);
+    ctx.set('Access-Control-Allow-Headers', `X-Requested-With, Content-Type, Accept, Authorization`);
+    ctx.set('Access-Control-Allow-Methods', `GET,PUT,OPTIONS,DELETE,PATCH`);
+    ctx.set('Access-Control-Max-Age', 3600);
+    ctx.body = `sucess`
+    return
+  }
+  await next();
+})
 
 // x-response-time
 
@@ -28,6 +46,7 @@ app.use(async (ctx, next) => {
   await next();
   const ms = Date.now() - start;
   ctx.set('X-Response-Time', `${ms}ms`);
+  ctx.set('Access-Control-Allow-Origin', `*`);
 });
 
 // response
@@ -45,6 +64,10 @@ router.post('/users', async (ctx, next) => {
 });
 router.post('/addusers', async (ctx, next) => {
   const requestData = ctx.request.body;
+  if(requestData.username === undefined || requestData.passwords === undefined || requestData.username.trim() === '' || requestData.passwords.trim() === '') {
+    ctx.body = status['注册数据错误']
+    return
+  }
   const checkUserIsExitSql = `SELECT username FROM usinguser WHERE username = "${requestData.username}";`
   const checkResult = await searchSql(checkUserIsExitSql);
   if((checkResult as Array<any>).length > 0 ) {

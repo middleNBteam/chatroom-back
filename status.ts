@@ -34,5 +34,10 @@ export default {
     status: 703,
     ...failFlag,
     msg: '登陆已过期'
-  }
+  },
+  '注册数据错误': {
+    status: 704,
+    ...failFlag,
+    msg: '注册用户名或密码错误'
+  },
 }
